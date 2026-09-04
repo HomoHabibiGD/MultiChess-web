@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>MultiChess</title>
+<style>
+  :root{
+    --bg:#141c24;
+    --panel:#1b2732;
+    --panel-2:#22303c;
+    --line:#2c3d4a;
+    --paper:#e8e2d3;
+    --text:#cfd9e0;
+    --text-dim:#748998;
+    --accent:#7fb3c4;
+    --accent-dim:#4c7f8f;
+    --accent-ink:#0e161c;
+    --board-light:#ece6d4;
+    --board-dark:#5c7852;
+    --danger:#c1604a;
+    --good:#7ba980;
+    --sel:#d1a53d;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  h1,h2,.serif{
+    font-family:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+  }
+  .mono{
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    letter-spacing:0.2px;
+  }
+  #app{
+    max-width:520px;
+    margin:0 auto;
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    padding:18px 16px 32px;
+  }
+  header.top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:18px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:12px;
+  }
+  header.top h1{
+    font-size:26px;
+    font-weight:600;
+    letter-spacing:0.3px;
+    margin:0;
+    color:var(--accent);
+  }
+  #connStatus{
+    font-size:12px;
+    color:var(--text-dim);
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  #connStatus.live{color:var(--good);}
+  #connStatus.down{color:var(--danger);}
+
+  .screen{display:none;}
+  .screen.active{display:flex; flex-direction:column; gap:16px; animation:screenIn .22s ease;}
+  @keyframes screenIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:16px;
+  }
+  .field{margin-bottom:12px;}
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--text-dim);
+    margin-bottom:5px;
+  }
+  .field input{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:4px;
+    color:var(--text);
+    padding:10px 11px;
+    font-size:15px;
+  }
+  .field input:focus{outline:1px solid var(--accent); border-color:var(--accent);}
+
+  button{
+    font-family:inherit;
+    cursor:pointer;
+    border:none;
+    border-radius:2px;
+    padding:10px 16px;
+    font-size:14px;
+    font-weight:600;
+    background:var(--accent-dim);
+    color:var(--paper);
+    transition:background .15s ease, transform .08s ease;
+  }
+  button:hover{background:var(--accent);}
+  button:active{transform:scale(.96);}
+  button:disabled{opacity:.4; cursor:default;}
+  button:disabled:active{transform:none;}
+  button.primary{background:var(--accent); color:var(--accent-ink);}
+  button.primary:hover{background:#96c4d3;}
+  button.ghost{background:transparent; border:1px solid var(--line); color:var(--text);}
+  a.btn-link{
+    display:block;
+    width:100%;
+    text-align:center;
+    text-decoration:none;
+    box-sizing:border-box;
+    background:transparent;
+    border:1px solid var(--line);
+    border-radius:2px;
+    color:var(--text-dim);
+    padding:10px 16px;
+    font-size:13px;
+    font-weight:600;
+    transition:background-color .15s ease, color .15s ease, transform .08s ease;
+  }
+  a.btn-link:hover{background:var(--panel-2); color:var(--text);}
+  a.btn-link:active{transform:scale(.96);}
+  button.ghost:hover{background:var(--panel-2);}
+  button.danger{background:var(--danger); color:#fff0eb;}
+  button.danger:hover{background:#c65f4d;}
+  button.small{padding:6px 11px; font-size:12px;}
+  button.wide{width:100%;}
+  .btn-spinner{
+    display:inline-block;
+    width:14px; height:14px;
+    border-radius:50%;
+    border:2px solid rgba(14,22,28,.35);
+    border-top-color:var(--accent-ink);
+    vertical-align:-2px;
+    margin-right:8px;
+    animation:spin .7s linear infinite;
+  }
+  .btn-spinner[hidden]{display:none;}
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .err{color:var(--danger); font-size:13px; min-height:16px;}
+
+  /* --- lobby --- */
+  #lobbyList{list-style:none; margin:0; padding:0;}
+  #lobbyList li{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 6px;
+    border-bottom:1px solid var(--line);
+    border-radius:2px;
+    transition:background-color .15s ease;
+  }
+  #lobbyList li:hover{background:var(--panel-2);}
+  #lobbyList li:last-child{border-bottom:none;}
+  .pname{font-size:15px;}
+  .pbadge{
+    font-size:11px;
+    color:var(--text-dim);
+    margin-left:8px;
+  }
+  #lobbyEmpty{color:var(--text-dim); font-size:13px; padding:8px 2px;}
+
+  /* --- modal --- */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(10,8,6,.72);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+    z-index:50;
+  }
+  .overlay.hidden{display:none;}
+  .modal{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:20px;
+    max-width:360px;
+    width:100%;
+    animation:modalPop .18s cubic-bezier(.2,.9,.3,1.3);
+  }
+  @keyframes modalPop{ from{opacity:0; transform:scale(.93);} to{opacity:1; transform:scale(1);} }
+  .modal h2{font-size:18px; margin:0 0 10px;}
+  .modal p{font-size:14px; color:var(--text); margin:0 0 16px; line-height:1.5;}
+  .modal .row{display:flex; gap:10px; justify-content:flex-end;}
+
+  /* --- game --- */
+  #gameHeader{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:14px;
+  }
+  #oppName{color:var(--accent); font-weight:600;}
+  #turnBanner{
+    text-align:center;
+    font-size:13px;
+    color:var(--text-dim);
+    padding:6px 0;
+  }
+  #turnBanner.mine{color:var(--accent); font-weight:600;}
+  #material{font-size:12px; color:var(--text-dim); text-align:center; min-height:16px;}
+  #statusBanner{
+    text-align:center;
+    font-size:13px;
+    padding:8px;
+    border-radius:4px;
+    background:var(--panel-2);
+    color:var(--accent);
+    display:none;
+  }
+  #statusBanner.show{display:block;}
+
+  #boardWrap{display:flex; justify-content:center;}
+  #board{
+    display:grid;
+    grid-template-columns:repeat(8,1fr);
+    grid-template-rows:repeat(8,1fr);
+    width:min(94vw,440px);
+    height:min(94vw,440px);
+    border:2px solid var(--line);
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .sq{
+    display:flex; align-items:center; justify-content:center;
+    font-size:min(8vw,34px);
+    position:relative;
+    user-select:none;
+    transition:background-color .12s ease;
+  }
+  .sq.light{background:var(--board-light);}
+  .sq.dark{background:var(--board-dark);}
+  .sq .piece{position:relative; z-index:2; transition:transform .18s ease;}
+  .sq .piece.black{color:#14191d; -webkit-text-stroke:0.5px rgba(232,226,211,.5);}
+  .sq .piece.white{color:#f5f1e6; -webkit-text-stroke:0.6px #14191d;}
+  .sq.selected{box-shadow:inset 0 0 0 3px var(--sel);}
+  .sq.lastmove{box-shadow:inset 0 0 0 3px rgba(209,165,61,.5);}
+  .sq.legal::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:rgba(80,214,130,.38);
+    z-index:1;
+  }
+  .sq.legal.occupied::after{
+    background:rgba(80,214,130,.24);
+    box-shadow:inset 0 0 0 3px rgba(80,214,130,.75);
+  }
+  .sq.check{box-shadow:inset 0 0 0 3px var(--danger);}
+  .sq .coord{
+    position:absolute;
+    font-size:9px;
+    line-height:1;
+    pointer-events:none;
+    opacity:.75;
+    z-index:2;
+  }
+  .sq .coord.rank{top:3px; left:3px;}
+  .sq .coord.file{bottom:3px; right:3px;}
+  .sq.light .coord{color:rgba(20,26,31,.55);}
+  .sq.dark .coord{color:rgba(232,226,211,.6);}
+
+  #gameActions{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+
+  footer.app-footer{
+    margin-top:auto;
+    padding-top:20px;
+    text-align:center;
+    font-size:11px;
+    color:var(--text-dim);
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="top">
+    <h1>MultiChess</h1>
+    <div id="connStatus">not connected</div>
+  </header>
+
+  <!-- ===================== CONNECT SCREEN ===================== -->
+  <div class="screen active" id="screen-connect">
+    <div class="card">
+      <div class="field">
+        <label for="nameInput">Your name</label>
+        <input id="nameInput" type="text" maxlength="24" placeholder="Player" autocapitalize="words">
+      </div>
+      <div class="err" id="connectErr"></div>
+      <button class="primary wide" id="connectBtn">
+        <span class="btn-spinner" id="connectSpinner" hidden></span>
+        <span id="connectBtnLabel">Connect</span>
+      </button>
+    </div>
+    <div class="card" id="windowsClientCard">
+      <p class="mono" style="margin:0 0 12px; font-size:12px; line-height:1.6; color:var(--text-dim);">
+        The Windows app also has a bot you can play against offline, with adjustable difficulty, sound, and dark mode.
+      </p>
+      <a class="btn-link" id="windowsClientLink" href="#" target="_blank" rel="noopener">Download the Windows client</a>
+    </div>
+  </div>
+
+  <!-- ===================== LOBBY SCREEN ===================== -->
+  <div class="screen" id="screen-lobby">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span class="serif" style="font-size:16px; color:var(--accent);">Lobby</span>
+        <span style="font-size:12px; color:var(--text-dim);">playing as <span id="myName" style="color:var(--accent);"></span></span>
+      </div>
+      <ul id="lobbyList"></ul>
+      <div id="lobbyEmpty">No one else is online right now.</div>
+    </div>
+    <div id="pendingInvite" class="card" style="display:none;">
+      <p style="margin:0; font-size:14px;">Invite sent to <span id="pendingTarget" style="color:var(--accent);"></span> — waiting for a response…</p>
+    </div>
+    <button class="ghost" id="disconnectBtn">Disconnect</button>
+  </div>
+
+  <!-- ===================== GAME SCREEN ===================== -->
+  <div class="screen" id="screen-game">
+    <div id="gameHeader">
+      <span>You: <strong id="myColorLabel"></strong></span>
+      <span>Opponent: <span id="oppName"></span></span>
+    </div>
+    <div id="statusBanner"></div>
+    <div id="turnBanner"></div>
+    <div id="material"></div>
+    <div id="boardWrap"><div id="board"></div></div>
+    <div id="gameActions">
+      <button class="ghost small" id="offerDrawBtn">Offer draw</button>
+      <button class="danger small" id="resignBtn">Resign</button>
+      <button class="ghost small" id="leaveGameBtn" style="display:none;">Back to lobby</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===================== MODALS ===================== -->
+<div class="overlay hidden" id="promoOverlay">
+  <div class="modal">
+    <h2>Promote pawn</h2>
+    <div class="row" id="promoChoices" style="justify-content:center; gap:14px;"></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="inviteOverlay">
+  <div class="modal">
+    <h2>Game invite</h2>
+    <p><span id="inviteFrom" style="color:var(--accent);"></span> wants to play a game.</p>
+    <div class="row">
+      <button class="ghost" id="inviteDeclineBtn">Decline</button>
+      <button class="primary" id="inviteAcceptBtn">Accept</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="drawOverlay">
+  <div class="modal">
+    <h2>Draw offer</h2>
+    <p>Your opponent is offering a draw.</p>
+    <div class="row">
+      <button class="ghost" id="drawDeclineBtn">Decline</button>
+      <button class="primary" id="drawAcceptBtn">Accept</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="rematchOverlay">
+  <div class="modal">
+    <h2>Rematch?</h2>
+    <p><span id="rematchFrom" style="color:var(--accent);"></span> wants a rematch.</p>
+    <div class="row">
+      <button class="ghost" id="rematchDeclineBtn">Decline</button>
+      <button class="primary" id="rematchAcceptBtn">Accept</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="gameOverOverlay">
+  <div class="modal">
+    <h2 id="gameOverTitle">Game over</h2>
+    <p id="gameOverMsg"></p>
+    <div class="row">
+      <button class="ghost" id="gameOverLobbyBtn">Back to lobby</button>
+      <button class="primary" id="gameOverRematchBtn">Offer rematch</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ===================================================================
+   CHESS ENGINE — ported from the Python Position class in server.py
+   so that legal-move generation and check/mate detection match the
+   server exactly. Board convention: row 0 = black's back rank,
+   row 7 = white's back rank, matching server.py's initial_board().
+=================================================================== */
+
+function initialBoard(){
+  return [
+    "rnbqkbnr".split(""),
+    "pppppppp".split(""),
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    "PPPPPPPP".split(""),
+    "RNBQKBNR".split(""),
+  ];
+}
+function newPosition(){
+  return { board:initialBoard(), turn:"w", castling:"KQkq", enPassant:null };
+}
+function clonePos(pos){
+  return {
+    board: pos.board.map(r=>r.slice()),
+    turn: pos.turn,
+    castling: pos.castling,
+    enPassant: pos.enPassant ? [pos.enPassant[0], pos.enPassant[1]] : null,
+  };
+}
+function pieceColor(p){ return p === p.toUpperCase() ? "w" : "b"; }
+function inBounds(r,c){ return r>=0 && r<8 && c>=0 && c<8; }
+function sqEq(a,b){ return a && b && a[0]===b[0] && a[1]===b[1]; }
+
+function findKing(pos, color){
+  const king = color === "w" ? "K" : "k";
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) if(pos.board[r][c]===king) return [r,c];
+  return null;
+}
+
+function attacked(pos, square, byColor){
+  const [row,col] = square;
+  const pawn = byColor === "w" ? "P" : "p";
+  const pawnRow = byColor === "w" ? row+1 : row-1;
+  for(const dc of [-1,1]){
+    if(inBounds(pawnRow,col+dc) && pos.board[pawnRow][col+dc]===pawn) return true;
+  }
+  const knight = byColor === "w" ? "N" : "n";
+  for(const [dr,dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]){
+    if(inBounds(row+dr,col+dc) && pos.board[row+dr][col+dc]===knight) return true;
+  }
+  const king = byColor === "w" ? "K" : "k";
+  for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+    if((dr||dc) && inBounds(row+dr,col+dc) && pos.board[row+dr][col+dc]===king) return true;
+  }
+  const groups = [
+    [[[-1,0],[1,0],[0,-1],[0,1]], "RQ"],
+    [[[-1,-1],[-1,1],[1,-1],[1,1]], "BQ"],
+  ];
+  for(const [dirs,pieces] of groups){
+    for(const [dr,dc] of dirs){
+      let rr=row+dr, cc=col+dc;
+      while(inBounds(rr,cc)){
+        const piece = pos.board[rr][cc];
+        if(piece){
+          if(pieceColor(piece)===byColor && pieces.includes(piece.toUpperCase())) return true;
+          break;
+        }
+        rr+=dr; cc+=dc;
+      }
+    }
+  }
+  return false;
+}
+function inCheck(pos, color){
+  const king = findKing(pos,color);
+  if(!king) return false;
+  return attacked(pos, king, color==="w"?"b":"w");
+}
+
+function mv(start,end,extra){
+  return Object.assign({start,end,promotion:null,enPassant:false,castle:false}, extra||{});
+}
+
+function addIfValid(pos, moves, start, end, color){
+  if(!inBounds(end[0],end[1])) return false;
+  const target = pos.board[end[0]][end[1]];
+  if(!target || (pieceColor(target)!==color && target.toUpperCase()!=="K")){
+    moves.push(mv(start,end));
+    return true;
+  }
+  return false;
+}
+function pawnMoveOptions(start,end){
+  if(end[0]===0 || end[0]===7) return ["Q","R","B","N"].map(p=>mv(start,end,{promotion:p}));
+  return [mv(start,end)];
+}
+function addCastles(pos, moves, row, col, color){
+  if(inCheck(pos,color)) return;
+  if(color==="w" && !(row===7 && col===4)) return;
+  if(color==="b" && !(row===0 && col===4)) return;
+  const enemy = color==="w" ? "b" : "w";
+  const rank = color==="w" ? 7 : 0;
+  const king = color==="w" ? "K" : "k";
+  if(pos.board[rank][4] !== king) return;
+  const rights = color==="w"
+    ? [["K",7,[5,6]], ["Q",0,[3,2]]]
+    : [["k",7,[5,6]], ["q",0,[3,2]]];
+  for(const [right, rookCol, transit] of rights){
+    if(!pos.castling.includes(right)) continue;
+    const rookPiece = pos.board[rank][rookCol];
+    if(!rookPiece || rookPiece.toUpperCase()!=="R") continue;
+    const between = rookCol===7 ? [5,6] : [1,2,3];
+    if(between.some(c=>pos.board[rank][c])) continue;
+    const attackedSquares = rookCol===7 ? [[rank,5],[rank,6]] : [[rank,3],[rank,2]];
+    if(attackedSquares.some(sq=>attacked(pos,sq,enemy))) continue;
+    moves.push(mv([rank,4],[rank, rookCol===7?6:2],{castle:true}));
+  }
+}
+
+function pseudoMoves(pos, color){
+  const moves = [];
+  for(let row=0; row<8; row++){
+    for(let col=0; col<8; col++){
+      const piece = pos.board[row][col];
+      if(!piece || pieceColor(piece)!==color) continue;
+      const kind = piece.toUpperCase();
+      if(kind==="P"){
+        const direction = color==="w" ? -1 : 1;
+        const startRow = color==="w" ? 6 : 1;
+        const nextRow = row+direction;
+        if(inBounds(nextRow,col) && !pos.board[nextRow][col]){
+          moves.push(...pawnMoveOptions([row,col],[nextRow,col]));
+          const twoRow = row+2*direction;
+          if(row===startRow && !pos.board[twoRow][col]) moves.push(mv([row,col],[twoRow,col]));
+        }
+        for(const dc of [-1,1]){
+          const end=[nextRow,col+dc];
+          if(!inBounds(end[0],end[1])) continue;
+          const target = pos.board[end[0]][end[1]];
+          if(target && pieceColor(target)!==color && target.toUpperCase()!=="K"){
+            moves.push(...pawnMoveOptions([row,col],end));
+          } else if(sqEq(end,pos.enPassant)){
+            moves.push(mv([row,col],end,{enPassant:true}));
+          }
+        }
+      } else if(kind==="N"){
+        for(const [dr,dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]){
+          addIfValid(pos,moves,[row,col],[row+dr,col+dc],color);
+        }
+      } else if("BRQ".includes(kind)){
+        let dirs=[];
+        if("RQ".includes(kind)) dirs=dirs.concat([[-1,0],[1,0],[0,-1],[0,1]]);
+        if("BQ".includes(kind)) dirs=dirs.concat([[-1,-1],[-1,1],[1,-1],[1,1]]);
+        for(const [dr,dc] of dirs){
+          let rr=row+dr, cc=col+dc;
+          while(inBounds(rr,cc)){
+            if(!addIfValid(pos,moves,[row,col],[rr,cc],color)) break;
+            if(pos.board[rr][cc]) break;
+            rr+=dr; cc+=dc;
+          }
+        }
+      } else { // King
+        for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+          if(dr||dc) addIfValid(pos,moves,[row,col],[row+dr,col+dc],color);
+        }
+        addCastles(pos,moves,row,col,color);
+      }
+    }
+  }
+  return moves;
+}
+
+function applyMove(pos, move){
+  const [sr,sc] = move.start;
+  const [er,ec] = move.end;
+  const piece = pos.board[sr][sc];
+  const captured = pos.board[er][ec];
+  pos.board[sr][sc] = "";
+  if(move.enPassant) pos.board[sr][ec] = "";
+  let placed;
+  if(piece === piece.toUpperCase()){
+    placed = move.promotion ? move.promotion : piece;
+  } else {
+    placed = move.promotion ? move.promotion.toLowerCase() : piece;
+  }
+  pos.board[er][ec] = placed;
+  if(move.castle){
+    const [rsr,rsc] = ec===6 ? [sr,7] : [sr,0];
+    const [rer,rec] = ec===6 ? [sr,5] : [sr,3];
+    pos.board[rer][rec] = pos.board[rsr][rsc];
+    pos.board[rsr][rsc] = "";
+  }
+  updateRights(pos, piece, move.start, move.end, captured);
+  pos.enPassant = (piece.toUpperCase()==="P" && Math.abs(er-sr)===2) ? [(sr+er)/2, sc] : null;
+  pos.turn = pos.turn==="w" ? "b" : "w";
+}
+
+function updateRights(pos, piece, start, end, captured){
+  let rights = pos.castling;
+  const startClears = [
+    [[7,4],"KQ"], [[0,4],"kq"], [[7,0],"Q"], [[7,7],"K"], [[0,0],"q"], [[0,7],"k"],
+  ];
+  for(const [square,chars] of startClears){
+    const isKingStart = square[1]===4 && piece.toUpperCase()==="K";
+    if(sqEq(start,square) && (isKingStart || square[1]!==4)){
+      rights = rights.split("").filter(c=>!chars.includes(c)).join("");
+    }
+  }
+  const endClears = [[[7,0],"Q"], [[7,7],"K"], [[0,0],"q"], [[0,7],"k"]];
+  for(const [square,chars] of endClears){
+    if(sqEq(end,square) && captured){
+      rights = rights.split("").filter(c=>!chars.includes(c)).join("");
+    }
+  }
+  pos.castling = rights;
+}
+
+function legalMoves(pos, color){
+  color = color || pos.turn;
+  const result = [];
+  for(const move of pseudoMoves(pos,color)){
+    const test = clonePos(pos);
+    applyMove(test, move);
+    if(!inCheck(test,color)) result.push(move);
+  }
+  return result;
+}
+
+/* ===================================================================
+   APP STATE
+=================================================================== */
+
+const PIECE_GLYPH = {
+  K:"\u2654", Q:"\u2655", R:"\u2656", B:"\u2657", N:"\u2658", P:"\u2659",
+  k:"\u265A", q:"\u265B", r:"\u265C", b:"\u265D", n:"\u265E", p:"\u265F",
+};
+const PIECE_VALUE = {P:1,N:3,B:3,R:5,Q:9,K:0};
+
+let ws = null;
+let myName = null;
+let myColor = null;       // 'w' | 'b' | null (spectating)
+let oppName = null;
+let isSpectating = false;
+let position = null;
+let selected = null;      // [r,c] or null
+let legalForSelected = [];
+let lastMove = null;      // {start,end}
+let gameActive = false;
+let pendingPromotion = null; // {start,end,options:[move,...]}
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+let userInitiatedDisconnect = false;
+let pingTimer = null;
+
+const $ = id => document.getElementById(id);
+
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+function setConnStatus(text, cls){
+  const el = $("connStatus");
+  el.textContent = text;
+  el.className = cls || "";
+}
+function showOverlay(id){ $(id).classList.remove("hidden"); }
+function hideOverlay(id){ $(id).classList.add("hidden"); }
+
+/* ----------------------- connection ----------------------- */
+
+const SERVER_URL = "wss://servertest-1-w6my.onrender.com";
+// Windows client download link — swap this whenever you publish a new build.
+const WINDOWS_CLIENT_URL = "https://github.com/HomoHabibiGD/MultiChess-Windows/releases/download/Releases/MultiChess.exe";
+const ATTEMPT_TIMEOUT_MS = 30000; // give a fresh connection real time to complete — a cold Render instance can take ~15-20s to answer, same as the desktop client
+const RETRY_DELAY_MS = 1500;
+const MAX_ATTEMPTS = 4;
+
+function setConnectButtonBusy(busy){
+  $("connectBtn").disabled = busy;
+  $("connectSpinner").hidden = !busy;
+  $("connectBtnLabel").textContent = busy ? "Connecting" : "Connect";
+}
+
+function connect(){
+  const name = $("nameInput").value.trim() || "Player";
+  $("connectErr").textContent = "";
+  myName = name;
+  localStorage.setItem("multichess_name", name);
+  userInitiatedDisconnect = false;
+  reconnectAttempts = 0;
+  setConnectButtonBusy(true);
+  openSocket(SERVER_URL);
+}
+
+function openSocket(url){
+  setConnStatus("connecting…");
+  let ws_;
+  try{
+    ws_ = new WebSocket(url);
+    ws = ws_;
+  }catch(e){
+    $("connectErr").textContent = "Couldn't open a connection (" + e.message + ").";
+    setConnStatus("not connected","down");
+    setConnectButtonBusy(false);
+    return;
+  }
+  // Browsers don't time out a stalled handshake on their own — it can
+  // sit in CONNECTING for a very long time with no feedback. Force it:
+  // if it hasn't opened shortly, abort and retry rather than wait.
+  const attemptTimeout = setTimeout(()=>{
+    if(ws_.readyState === WebSocket.CONNECTING) ws_.close();
+  }, ATTEMPT_TIMEOUT_MS);
+
+  ws_.onopen = () => {
+    clearTimeout(attemptTimeout);
+    reconnectAttempts = 0;
+    $("connectErr").textContent = "";
+    setConnStatus("connected","live");
+    setConnectButtonBusy(false);
+    send({type:"register", name: myName});
+    startPing();
+  };
+  ws_.onmessage = (ev) => {
+    let msg;
+    try{ msg = JSON.parse(ev.data); }catch(e){ return; }
+    handleMessage(msg);
+  };
+  ws_.onclose = (ev) => {
+    clearTimeout(attemptTimeout);
+    stopPing();
+    setConnStatus("disconnected","down");
+    if(!userInitiatedDisconnect){
+      if(gameActive){
+        showStatusBanner("Connection lost — trying to reconnect…");
+      }
+      scheduleReconnect(url, ev.code);
+    } else {
+      setConnectButtonBusy(false);
+      showScreen("screen-connect");
+    }
+  };
+  ws_.onerror = () => {};
+}
+
+function scheduleReconnect(url, lastCode){
+  if(reconnectTimer) return;
+  reconnectAttempts++;
+  if(reconnectAttempts > MAX_ATTEMPTS){
+    $("connectErr").textContent = "Still can't reach the server (code " + lastCode + "). Tap Connect to try again.";
+    setConnStatus("not connected","down");
+    setConnectButtonBusy(false);
+    if(!gameActive) showScreen("screen-connect");
+    return;
+  }
+  if(!gameActive) setConnStatus("connecting… (" + reconnectAttempts + ", code " + lastCode + ")");
+  reconnectTimer = setTimeout(()=>{
+    reconnectTimer = null;
+    openSocket(url);
+  }, RETRY_DELAY_MS);
+}
+
+function startPing(){
+  stopPing();
+  pingTimer = setInterval(()=>{ if(ws && ws.readyState===WebSocket.OPEN) send({type:"ping"}); }, 20000);
+}
+function stopPing(){ if(pingTimer){ clearInterval(pingTimer); pingTimer=null; } }
+
+function send(obj){
+  if(ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+function disconnect(){
+  userInitiatedDisconnect = true;
+  if(ws) ws.close();
+  gameActive = false;
+  setConnectButtonBusy(false);
+  showScreen("screen-connect");
+  setConnStatus("not connected");
+}
+
+/* ----------------------- message handling ----------------------- */
+
+function handleMessage(msg){
+  switch(msg.type){
+    case "registered":
+      myName = msg.name;
+      $("myName").textContent = myName;
+      showScreen("screen-lobby");
+      break;
+    case "reconnected":
+      myColor = msg.color;
+      oppName = msg.opponent;
+      isSpectating = false;
+      rebuildFromHistory(msg.move_history || []);
+      startGameUI();
+      break;
+    case "opponent_reconnected":
+      showStatusBanner("");
+      hideStatusBanner();
+      break;
+    case "player_list":
+      renderLobby(msg.players || []);
+      break;
+    case "invite_received":
+      $("inviteFrom").textContent = msg.from;
+      inviteFromPending = msg.from;
+      showOverlay("inviteOverlay");
+      break;
+    case "invite_failed":
+      $("pendingInvite").style.display = "none";
+      alertMsg("Couldn't invite " + (msg.target||"that player") + " — they may already be in a game.");
+      break;
+    case "invite_declined":
+      $("pendingInvite").style.display = "none";
+      alertMsg(msg.from + " declined your invite.");
+      break;
+    case "game_start":
+      myColor = msg.color;
+      oppName = msg.opponent;
+      isSpectating = false;
+      $("pendingInvite").style.display = "none";
+      position = newPosition();
+      lastMove = null;
+      startGameUI();
+      break;
+    case "move":
+      applyRemoteMove(msg);
+      break;
+    case "move_rejected":
+      alertMsg("Move rejected: " + msg.reason);
+      break;
+    case "opponent_disconnected":
+      showStatusBanner("Opponent disconnected — waiting for them to reconnect…");
+      break;
+    case "opponent_left":
+      endGame("Your opponent didn't reconnect in time. You can head back to the lobby.", "Opponent left");
+      break;
+    case "opponent_resigned":
+      endGame("Your opponent resigned. You win!", "Victory");
+      break;
+    case "draw_offered":
+      showOverlay("drawOverlay");
+      break;
+    case "draw_declined":
+      alertMsg("Your draw offer was declined.");
+      break;
+    case "draw_agreed":
+      endGame("The game was drawn by agreement.", "Draw");
+      break;
+    case "rematch_offered":
+      $("rematchFrom").textContent = oppName || "Your opponent";
+      showOverlay("rematchOverlay");
+      break;
+    case "rematch_declined":
+      alertMsg("Rematch declined.");
+      break;
+    case "kicked_for_cheating":
+      endGame(msg.message || "The game was ended.", "Game ended");
+      break;
+    case "opponent_kicked":
+      endGame(msg.message || "You win!", "Victory");
+      break;
+    case "spectate_start":
+      myColor = null;
+      isSpectating = true;
+      oppName = msg.white + " vs " + msg.black;
+      rebuildFromHistory(msg.move_history || []);
+      startGameUI();
+      break;
+    case "spectate_failed":
+      alertMsg("That game is no longer available to spectate.");
+      break;
+    case "game_ended":
+      if(isSpectating) endGame(msg.message || "The game ended.", "Game over");
+      break;
+    case "pong":
+      break;
+  }
+}
+
+let inviteFromPending = null;
+
+function rebuildFromHistory(history){
+  position = newPosition();
+  lastMove = null;
+  for(const rec of history){
+    const move = mv(rec.start, rec.end, {
+      promotion: rec.promotion || null,
+      enPassant: !!rec.en_passant,
+      castle: !!rec.castle,
+    });
+    applyMove(position, move);
+    lastMove = {start: move.start, end: move.end};
+  }
+}
+
+function applyRemoteMove(msg){
+  const move = mv(msg.start, msg.end, {
+    promotion: msg.promotion || null,
+    enPassant: !!msg.en_passant,
+    castle: !!msg.castle,
+  });
+  applyMove(position, move);
+  lastMove = {start: move.start, end: move.end};
+  selected = null; legalForSelected = [];
+  renderBoard();
+  animateMove(move.start, move.end);
+  updateTurnBanner();
+  checkGameEnd();
+}
+
+function animateMove(fromRC, toRC){
+  const boardEl = $("board");
+  const size = boardEl.clientWidth / 8;
+  const flip = myColor === "b";
+  const visual = ([r,c]) => flip ? [7-r,7-c] : [r,c];
+  const [vfr,vfc] = visual(fromRC);
+  const [vtr,vtc] = visual(toRC);
+  const dx = (vfc - vtc) * size;
+  const dy = (vfr - vtr) * size;
+  const destSq = boardEl.querySelector('.sq[data-r="'+toRC[0]+'"][data-c="'+toRC[1]+'"]');
+  if(!destSq) return;
+  const pieceEl = destSq.querySelector(".piece");
+  if(!pieceEl) return;
+  pieceEl.style.transition = "none";
+  pieceEl.style.transform = "translate(" + dx + "px," + dy + "px)";
+  requestAnimationFrame(() => {
+    pieceEl.style.transition = "transform .18s ease";
+    pieceEl.style.transform = "translate(0,0)";
+  });
+}
+
+/* ----------------------- lobby ----------------------- */
+
+function renderLobby(players){
+  const list = $("lobbyList");
+  list.innerHTML = "";
+  const others = players.filter(p => p.name !== myName);
+  $("lobbyEmpty").style.display = others.length ? "none" : "block";
+  for(const p of others){
+    const li = document.createElement("li");
+    const left = document.createElement("span");
+    left.className = "pname";
+    left.textContent = p.name;
+    const badge = document.createElement("span");
+    badge.className = "pbadge";
+    badge.textContent = p.in_game ? "in a game" : "available";
+    left.appendChild(badge);
+    li.appendChild(left);
+
+    const btn = document.createElement("button");
+    btn.className = "small ghost";
+    if(p.in_game){
+      btn.textContent = "Spectate";
+      btn.onclick = () => send({type:"spectate", target:p.name});
+    } else {
+      btn.textContent = "Invite";
+      btn.onclick = () => {
+        send({type:"invite", target:p.name});
+        $("pendingTarget").textContent = p.name;
+        $("pendingInvite").style.display = "block";
+      };
+    }
+    li.appendChild(btn);
+    list.appendChild(li);
+  }
+}
+
+/* ----------------------- game UI ----------------------- */
+
+function startGameUI(){
+  gameActive = true;
+  hideStatusBanner();
+  $("myColorLabel").textContent = isSpectating ? "spectating" : (myColor==="w" ? "White" : "Black");
+  $("oppName").textContent = oppName || "";
+  $("leaveGameBtn").style.display = isSpectating ? "inline-block" : "none";
+  $("offerDrawBtn").style.display = isSpectating ? "none" : "inline-block";
+  $("resignBtn").style.display = isSpectating ? "none" : "inline-block";
+  selected = null; legalForSelected = [];
+  showScreen("screen-game");
+  renderBoard();
+  updateTurnBanner();
+  updateMaterial();
+}
+
+function showStatusBanner(text){
+  const el = $("statusBanner");
+  if(!text){ el.classList.remove("show"); return; }
+  el.textContent = text;
+  el.classList.add("show");
+}
+function hideStatusBanner(){ $("statusBanner").classList.remove("show"); }
+
+function updateTurnBanner(){
+  const el = $("turnBanner");
+  if(!position){ el.textContent=""; return; }
+  if(isSpectating){
+    el.textContent = (position.turn==="w"?"White":"Black") + " to move";
+    el.classList.remove("mine");
+    return;
+  }
+  const myTurn = position.turn === myColor;
+  el.textContent = myTurn ? "Your move" : "Waiting for " + (oppName||"opponent") + "…";
+  el.classList.toggle("mine", myTurn);
+}
+
+function updateMaterial(){
+  if(!position){ $("material").textContent=""; return; }
+  let w=0,b=0;
+  for(const row of position.board) for(const p of row){
+    if(!p) continue;
+    const v = PIECE_VALUE[p.toUpperCase()] || 0;
+    if(pieceColor(p)==="w") w+=v; else b+=v;
+  }
+  const diff = w-b;
+  if(diff===0){ $("material").textContent = "Material even"; }
+  else{
+    const side = diff>0 ? "White" : "Black";
+    $("material").textContent = side + " up +" + Math.abs(diff);
+  }
+}
+
+function renderBoard(){
+  const boardEl = $("board");
+  boardEl.innerHTML = "";
+  const flip = myColor === "b";
+  const inCheckColor = position && (inCheck(position,"w") ? "w" : (inCheck(position,"b") ? "b" : null));
+  const kingSquare = inCheckColor ? findKing(position, inCheckColor) : null;
+
+  for(let i=0;i<8;i++){
+    for(let j=0;j<8;j++){
+      const r = flip ? 7-i : i;
+      const c = flip ? 7-j : j;
+      const sq = document.createElement("div");
+      const light = (r+c)%2===0;
+      sq.className = "sq " + (light ? "light" : "dark");
+      sq.dataset.r = r; sq.dataset.c = c;
+
+      if(selected && selected[0]===r && selected[1]===c) sq.classList.add("selected");
+      if(lastMove && (sqEq(lastMove.start,[r,c]) || sqEq(lastMove.end,[r,c]))) sq.classList.add("lastmove");
+      if(kingSquare && kingSquare[0]===r && kingSquare[1]===c) sq.classList.add("check");
+
+      const piece = position.board[r][c];
+      if(piece){
+        const span = document.createElement("span");
+        span.className = "piece " + (pieceColor(piece)==="w"?"white":"black");
+        span.textContent = PIECE_GLYPH[piece];
+        sq.appendChild(span);
+      }
+      const labelCol = flip ? 7 : 0;
+      const labelRow = flip ? 0 : 7;
+      if(c === labelCol){
+        const rank = document.createElement("span");
+        rank.className = "coord rank mono";
+        rank.textContent = 8 - r;
+        sq.appendChild(rank);
+      }
+      if(r === labelRow){
+        const file = document.createElement("span");
+        file.className = "coord file mono";
+        file.textContent = "abcdefgh"[c];
+        sq.appendChild(file);
+      }
+      const isLegalDest = legalForSelected.some(m => sqEq(m.end,[r,c]));
+      if(isLegalDest){
+        sq.classList.add("legal");
+        if(piece) sq.classList.add("occupied");
+      }
+
+      sq.onclick = () => onSquareClick(r,c);
+      boardEl.appendChild(sq);
+    }
+  }
+}
+
+function onSquareClick(r,c){
+  if(!gameActive || isSpectating) return;
+  if(position.turn !== myColor) return;
+
+  const piece = position.board[r][c];
+
+  if(selected){
+    const match = legalForSelected.filter(m => sqEq(m.end,[r,c]));
+    if(match.length){
+      if(match.length > 1){
+        pendingPromotion = {options: match};
+        openPromotionPicker();
+      } else {
+        commitMove(match[0]);
+      }
+      return;
+    }
+  }
+
+  if(piece && pieceColor(piece)===myColor){
+    selected = [r,c];
+    legalForSelected = legalMoves(position, myColor).filter(m => sqEq(m.start,[r,c]));
+  } else {
+    selected = null; legalForSelected = [];
+  }
+  renderBoard();
+}
+
+function openPromotionPicker(){
+  const wrap = $("promoChoices");
+  wrap.innerHTML = "";
+  const white = myColor === "w";
+  for(const p of ["Q","R","B","N"]){
+    const btn = document.createElement("button");
+    btn.className = "ghost";
+    btn.style.fontSize = "26px";
+    btn.style.padding = "10px 14px";
+    btn.textContent = PIECE_GLYPH[white ? p : p.toLowerCase()];
+    btn.onclick = () => {
+      hideOverlay("promoOverlay");
+      const move = pendingPromotion.options.find(m => m.promotion === p);
+      pendingPromotion = null;
+      commitMove(move);
+    };
+    wrap.appendChild(btn);
+  }
+  showOverlay("promoOverlay");
+}
+
+function commitMove(move){
+  applyMove(position, move);
+  lastMove = {start: move.start, end: move.end};
+  selected = null; legalForSelected = [];
+  send({
+    type:"move",
+    start: move.start, end: move.end,
+    promotion: move.promotion || null,
+    en_passant: !!move.enPassant,
+    castle: !!move.castle,
+  });
+  renderBoard();
+  animateMove(move.start, move.end);
+  updateTurnBanner();
+  updateMaterial();
+  checkGameEnd();
+}
+
+function checkGameEnd(){
+  updateMaterial();
+  const color = position.turn;
+  const moves = legalMoves(position, color);
+  if(moves.length === 0){
+    const checkmated = inCheck(position, color);
+    send({type:"game_finished"});
+    if(checkmated){
+      const winner = color === "w" ? "Black" : "White";
+      const iWon = !isSpectating && winner === (myColor==="w"?"White":"Black");
+      endGame(
+        isSpectating ? (winner + " wins by checkmate.") : (iWon ? "Checkmate — you win!" : "Checkmate — you lose."),
+        "Checkmate"
+      );
+    } else {
+      endGame("Stalemate — the game is a draw.", "Stalemate");
+    }
+  }
+}
+
+function endGame(message, title){
+  gameActive = false;
+  $("gameOverTitle").textContent = title || "Game over";
+  $("gameOverMsg").textContent = message;
+  $("gameOverRematchBtn").style.display = isSpectating ? "none" : "inline-block";
+  showOverlay("gameOverOverlay");
+}
+
+function alertMsg(text){
+  showStatusBanner(text);
+  setTimeout(()=>hideStatusBanner(), 4000);
+}
+
+/* ----------------------- wire up buttons ----------------------- */
+
+$("connectBtn").onclick = connect;
+$("disconnectBtn").onclick = disconnect;
+
+$("offerDrawBtn").onclick = () => send({type:"draw_offer"});
+$("resignBtn").onclick = () => {
+  if(confirm("Resign this game?")){
+    send({type:"resign"});
+    endGame("You resigned.", "You resigned");
+  }
+};
+$("leaveGameBtn").onclick = () => {
+  send({type:"stop_spectate"});
+  isSpectating = false; gameActive = false;
+  showScreen("screen-lobby");
+};
+
+$("inviteAcceptBtn").onclick = () => {
+  hideOverlay("inviteOverlay");
+  send({type:"invite_response", target: inviteFromPending, accept:true});
+};
+$("inviteDeclineBtn").onclick = () => {
+  hideOverlay("inviteOverlay");
+  send({type:"invite_response", target: inviteFromPending, accept:false});
+};
+
+$("drawAcceptBtn").onclick = () => { hideOverlay("drawOverlay"); send({type:"draw_response", accept:true}); };
+$("drawDeclineBtn").onclick = () => { hideOverlay("drawOverlay"); send({type:"draw_response", accept:false}); };
+
+$("rematchAcceptBtn").onclick = () => { hideOverlay("rematchOverlay"); send({type:"rematch_response", accept:true}); };
+$("rematchDeclineBtn").onclick = () => { hideOverlay("rematchOverlay"); send({type:"rematch_response", accept:false}); };
+
+$("gameOverLobbyBtn").onclick = () => {
+  hideOverlay("gameOverOverlay");
+  showScreen("screen-lobby");
+};
+$("gameOverRematchBtn").onclick = () => {
+  hideOverlay("gameOverOverlay");
+  send({type:"rematch_request"});
+  showStatusBanner("Rematch offer sent…");
+  showScreen("screen-game");
+  gameActive = false;
+};
+
+/* ----------------------- init ----------------------- */
+
+(function init(){
+  const savedName = localStorage.getItem("multichess_name");
+  if(savedName) $("nameInput").value = savedName;
+  $("windowsClientLink").href = WINDOWS_CLIENT_URL;
+})();
+</script>
+</body>
+</html>
